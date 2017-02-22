@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     static String USERNAME = "conor";
     static String PASSWORD = "test";
     String topicStr ="dev/test";
+    String message ="";
+    boolean connected = false;
 
 
     MqttConnectOptions options;
@@ -37,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     TextView subText;
     Vibrator vibrator;
     Ringtone myRingtone;
+    EditText etMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
         vibrator=(Vibrator)getSystemService(VIBRATOR_SERVICE);
         Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         myRingtone = RingtoneManager.getRingtone(getApplicationContext(),uri);
+        etMessage = (EditText)findViewById(R.id.etMessage);
+
 
         String clientId = MqttClient.generateClientId();
         client = new MqttAndroidClient(this.getApplicationContext(), MQTTHOST, clientId);
@@ -54,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
         options.setUserName(USERNAME);
         options.setPassword(PASSWORD.toCharArray());
 
-        try {
+        /*try {
             IMqttToken token = client.connect(options);
             token.setActionCallback(new IMqttActionListener() {
                 @Override
@@ -73,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
             });
         } catch (MqttException e) {
             e.printStackTrace();
-        }
+        }*/
 
         client.setCallback(new MqttCallback() {
             @Override
@@ -96,13 +102,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void Publish(View v){
-        String topic = topicStr;
-        String message = "hello world test";
-        try {
+        if(connected==true) {
+            String topic = topicStr;
+            message = etMessage.getText().toString();
+            try {
 
-            client.publish(topic, message.getBytes(),0,false);
-        } catch (MqttException e) {
-            e.printStackTrace();
+                client.publish(topic, message.getBytes(), 0, false);
+                etMessage.setText("");
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+        }
+        else{
+            Toast.makeText(MainActivity.this,"Unable to publish, try connecting",Toast.LENGTH_LONG).show();
         }
     }
 
@@ -116,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void Connect(View v){
+        if(connected==false){
         try {
             IMqttToken token = client.connect(options);
             token.setActionCallback(new IMqttActionListener() {
@@ -124,6 +137,8 @@ public class MainActivity extends AppCompatActivity {
                     // We are connected
                     Toast.makeText(MainActivity.this,"connected",Toast.LENGTH_LONG).show();
                     Subscribe();
+                    connected = true;
+
                 }
 
                 @Override
@@ -136,27 +151,38 @@ public class MainActivity extends AppCompatActivity {
         } catch (MqttException e) {
             e.printStackTrace();
         }
+      }
+        else{
+            Toast.makeText(MainActivity.this,"already connected",Toast.LENGTH_LONG).show();
+        }
     }
 
-    public void Dissconect(View v){
-        try {
-            IMqttToken token = client.disconnect();
-            token.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    // We are connected
-                    Toast.makeText(MainActivity.this,"disconnected",Toast.LENGTH_LONG).show();
-                }
+    public void Disconnect(View v) {
+        if (connected == true) {
+            try {
+                IMqttToken token = client.disconnect();
 
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    // Something went wrong e.g. connection timeout or firewall problems
-                    Toast.makeText(MainActivity.this,"disconnect failed",Toast.LENGTH_LONG).show();
+                token.setActionCallback(new IMqttActionListener() {
+                    @Override
+                    public void onSuccess(IMqttToken asyncActionToken) {
+                        // We are connected
+                        Toast.makeText(MainActivity.this, "disconnected", Toast.LENGTH_LONG).show();
+                        connected = false;
+                    }
 
-                }
-            });
-        } catch (MqttException e) {
-            e.printStackTrace();
+                    @Override
+                    public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                        // Something went wrong e.g. connection timeout or firewall problems
+                        Toast.makeText(MainActivity.this, "disconnect failed", Toast.LENGTH_LONG).show();
+
+                    }
+                });
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+        }
+        else{
+            Toast.makeText(MainActivity.this,"already disconnected",Toast.LENGTH_LONG).show();
         }
     }
 }
